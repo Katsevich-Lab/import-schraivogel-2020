@@ -1,10 +1,19 @@
+######################################################################
+#
+# Download raw data from Schraivogel et al, 2020
+#
+# Files come from three locations: GEO, the authors' FTP directory,
+# and supplementary tables from Nature Methods. 
+#
+######################################################################
+
+# set paths based on configuration file
+if(!file.exists("~/.research_config.R")) stop("Config file not found!")
+source("~/.research_config.R")
+
+# load libraries
 library(RCurl)
 library(R.utils)
-
-args <- commandArgs(trailingOnly = TRUE)
-local_data_path <- if (is.na(args[1])) "/Users/ekatsevi/data" else args[1]
-
-paper_name = "schraivogel-2020"
 
 ### define URLs to download the data from ###
 
@@ -19,20 +28,22 @@ supp_tab_url = "https://static-content.springer.com/esm/art%3A10.1038%2Fs41592-0
 
 ### create directories for raw data ###
 
-data_dir = sprintf("%s/%s", local_data_path, paper_name)
-raw_data_dir = sprintf("%s/raw", data_dir)
+raw_data_dir = sprintf("%s/raw", local_schraivogel_2020_data_dir)
+if(dir.exists(raw_data_dir)) stop("Raw data directory already exists!")
 
-dir.create(data_dir)
-dir.create(raw_data_dir)
+geo_dir = sprintf("%s/geo", raw_data_dir)
+ftp_dir = sprintf("%s/ftp", raw_data_dir)
+supp_dir = sprintf("%s/supp_tables", raw_data_dir)
+
+dir.create(geo_dir, recursive = TRUE)
+dir.create(ftp_dir, recursive = TRUE)
+dir.create(supp_dir, recursive = TRUE)
 
 ### download raw data from GEO ###
 
-# set up files and directories
-geo_dir = sprintf("%s/geo", raw_data_dir)
-dir.create(geo_dir)
 filename = "GSE135497_RAW.tar"
 source = geo_url
-dest = sprintf("%s/geo/%s", raw_data_dir, filename)
+dest = sprintf("%s/%s", geo_dir, filename)
 
 # download
 cat(sprintf("Downloading zipped file from GEO...\n"))
@@ -51,20 +62,15 @@ for(file in list.files(geo_dir, full.names = TRUE)){
 
 ### download results files from FTP directory ###
 
-# set up files and directories
-ftp_dir = sprintf("%s/ftp", raw_data_dir)
-dir.create(ftp_dir)
+# get list of files in FTP directory
 filenames = getURL(ftp_url)
-
-print(filenames)
-
 filenames = strsplit(filenames, "href=\"")[[1]]
 filenames = unname(sapply(filenames, 
                           function(str)(strsplit(str, split = "\"")[[1]][1])))[-(1:6)]
 
 # download
 for(filename in filenames){
-  source = sprintf("%s/%s", ftp_url, filename)
+  source = sprintf("%s%s", ftp_url, filename)
   dest <- sprintf("%s/ftp/%s", raw_data_dir, filename)
   cat(sprintf("Downloading %s...\n", filename))
   download.file(source, dest)
@@ -86,11 +92,18 @@ for(file in list.files(ftp_dir, full.names = TRUE)){
 
 ### download supplementary tables from Nature Methods ###
 
-dir.create(sprintf("%s/supp_tables", raw_data_dir))
 for(idx in 3:8){
   filename = sprintf("41592_2020_837_MOESM%d_ESM.xlsx", idx)
   source = sprintf("%s/%s", supp_tab_url, filename)
-  dest <- sprintf("%s/supp_tables/%s", raw_data_dir, filename)
+  dest <- sprintf("%s/%s", supp_dir, filename)
   cat(sprintf("Downloading Supplementary Table %d...\n", idx-2))
   download.file(source, dest)
 }
+
+### sync the downloaded data to remote ###
+cat(sprintf("Syncing downloaded data to remote...\n"))
+sync_command = sprintf("rclone sync -v %s %s/raw", 
+                       raw_data_dir, remote_schraivogel_2020_data_dir)
+system(sync_command)
+
+cat(sprintf("Done!\n"))
