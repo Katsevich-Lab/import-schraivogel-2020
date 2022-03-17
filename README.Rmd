@@ -40,7 +40,7 @@ aux_dir <- sprintf("%s/ground_truth_tapseq/aux", processed_dir)
 exper_design = readRDS(sprintf("%s/experimental_design.rds", aux_dir))
 exper_design %>% 
   head(5) %>% 
-  kableExtra::kable(format = "latex", 
+  kableExtra::kable(format = "html", 
                     booktabs = TRUE, 
                     col.names = c("gRNA", "Target", "Target Type", "Known Effect"))
 ```

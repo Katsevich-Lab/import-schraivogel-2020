@@ -53,10 +53,101 @@ aux_dir <- sprintf("%s/ground_truth_tapseq/aux", processed_dir)
 exper_design = readRDS(sprintf("%s/experimental_design.rds", aux_dir))
 exper_design %>% 
   head(5) %>% 
-  kableExtra::kable(format = "latex", 
+  kableExtra::kable(format = "html", 
                     booktabs = TRUE, 
                     col.names = c("gRNA", "Target", "Target Type", "Known Effect"))
 ```
+
+<table>
+<thead>
+<tr>
+<th style="text-align:left;">
+gRNA
+</th>
+<th style="text-align:left;">
+Target
+</th>
+<th style="text-align:left;">
+Target Type
+</th>
+<th style="text-align:left;">
+Known Effect
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+CCNE2\_+\_95907328.23-P1P2
+</td>
+<td style="text-align:left;">
+CCNE2-TSS
+</td>
+<td style="text-align:left;">
+promoter
+</td>
+<td style="text-align:left;">
+CCNE2
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+CCNE2\_+\_95907382.23-P1P2
+</td>
+<td style="text-align:left;">
+CCNE2-TSS
+</td>
+<td style="text-align:left;">
+promoter
+</td>
+<td style="text-align:left;">
+CCNE2
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+CCNE2\_+\_95907406.23-P1P2
+</td>
+<td style="text-align:left;">
+CCNE2-TSS
+</td>
+<td style="text-align:left;">
+promoter
+</td>
+<td style="text-align:left;">
+CCNE2
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+CCNE2\_-\_95907017.23-P1P2
+</td>
+<td style="text-align:left;">
+CCNE2-TSS
+</td>
+<td style="text-align:left;">
+promoter
+</td>
+<td style="text-align:left;">
+CCNE2
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+CPQ\_+\_97657557.23-P1P2
+</td>
+<td style="text-align:left;">
+CPQ-TSS
+</td>
+<td style="text-align:left;">
+promoter
+</td>
+<td style="text-align:left;">
+CPQ
+</td>
+</tr>
+</tbody>
+</table>
 
 The full table contains a total of 86 rows, so there are 86 gRNAs in
 this experiment. Breaking these down by their target,
