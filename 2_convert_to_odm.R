@@ -30,7 +30,7 @@ schraivogel_dir <-.get_config_path("LOCAL_SCHRAIVOGEL_2020_DATA_DIR")
 ### - `name` is the name of the dataset as we will call it
 ### - `label` is the experiment name used to define filenames on GEO 
 ### - `filename` is the name of the combined gene + gRNA expression file on FTP
-experiments = dplyr::tibble(name = c("ground_truth_tapseq", 
+experiments <- dplyr::tibble(name = c("ground_truth_tapseq", 
                                      "ground_truth_perturbseq"),
                             label = c("TASC_DIFFEX", 
                                       "WTX_DIFFEX"),
@@ -41,9 +41,9 @@ experiments = dplyr::tibble(name = c("ground_truth_tapseq",
 for(experiment in 1:nrow(experiments)){
   
   ### retrieve experiment names/labels ###
-  exper_name = experiments$name[experiment]
-  exper_label = experiments$label[experiment]
-  exper_filename = experiments$filename[experiment]
+  exper_name <- experiments$name[experiment]
+  exper_label <- experiments$label[experiment]
+  exper_filename <- experiments$filename[experiment]
   cat(sprintf("Importing the %s dataset...\n", exper_name))
 
   ### create directories to store processed gene and gRNA data ###
@@ -62,32 +62,34 @@ for(experiment in 1:nrow(experiments)){
   ### extract batch information from GEO files ###
   
   # get a list of all files in the geo directory
-  geo_files = list.files(sprintf("%sraw/geo", schraivogel_dir), full.names = TRUE)
+  geo_files <- list.files(sprintf("%sraw/geo", schraivogel_dir), full.names = TRUE)
   # determine number of batches based on the number of files with the correct 
   # label (e.g. "TASC_DIFFEX") that end in "counts.csv"
-  num_batches = sum(grepl(exper_label, geo_files) & grepl("counts.csv", geo_files))
+  num_batches <- sum(grepl(exper_label, geo_files) & grepl("counts.csv", geo_files))
   # define a list with one element for each batch
-  cells_to_batch = vector("list", num_batches)
+  cells_to_batch <- vector("list", num_batches)
   # loop over batches
   for(batch_id in 1:num_batches){
     # the file for the given batch (e.g. 2) is determined based on the fact that 
     # its filename contains a given substring (e.g. TASC_DIFFEX_sample2.counts.csv)
-    substring = sprintf("%s_sample%d.counts.csv", exper_label, batch_id)
-    expression_file = geo_files[grepl(substring, geo_files)]
+    substring <- sprintf("%s_sample%d.counts.csv", exper_label, batch_id)
+    expression_file <- geo_files[grepl(substring, geo_files)]
     # extract the first line of this file, which consists of all the cell barcodes
     # this batch contains; split by ",", and remove the first entry because it is 
     # blank
-    cell_barcodes = strsplit(readLines(expression_file, 1), split = ",")[[1]][-1]
+    cell_barcodes <- strsplit(readLines(expression_file, 1), split = ",")[[1]][-1]
     # create a tibble with first column storing cell barcode and second column
     # storing the batch number
-    cells_to_batch[[batch_id]] = dplyr::tibble(cell_barcode = cell_barcodes, 
+    cells_to_batch[[batch_id]] <- dplyr::tibble(cell_barcode = cell_barcodes, 
                                                batch = batch_id)
   }
   # concatenate all the batches together into one tibble
-  cells_to_batch = do.call("rbind", cells_to_batch)
+  cells_to_batch <- do.call("rbind", cells_to_batch) %>% 
+    # prepend "batch_" to the batch column to make it a string
+    dplyr::mutate(batch = paste0("batch_", batch))
   
   ### find cells without barcode collisions across batches ###
-  cells_to_keep = cells_to_batch %>% 
+  cells_to_keep <- cells_to_batch %>% 
     dplyr::group_by(cell_barcode) %>% 
     dplyr::summarise(ncells = dplyr::n()) %>% 
     dplyr::filter(ncells == 1) %>%
@@ -96,7 +98,7 @@ for(experiment in 1:nrow(experiments)){
               length(cells_to_keep), nrow(cells_to_batch)))
   
   ### subset the cell-batch dictionary to cells without barcode collisions
-  cells_to_batch = cells_to_batch %>% 
+  cells_to_batch <- cells_to_batch %>% 
     dplyr::filter(cell_barcode %in% cells_to_keep) %>%
     # also change "."to "-" in the cell barcodes for compatibility with FTP files 
     dplyr::mutate(cell_barcode = gsub("[.]", "-", cell_barcode))
@@ -110,14 +112,14 @@ for(experiment in 1:nrow(experiments)){
   # Note: the matrix raw_expr_data below contains both the gene and gRNA 
   # expression data, with gRNA rownames containing the prefix "CROPseq_dCas9_DS_"
   raw_expr_data <- readRDS(raw_expr_filename)
-  raw_expr_data = raw_expr_data[,cells_to_batch$cell_barcode]
+  raw_expr_data <- raw_expr_data[,cells_to_batch$cell_barcode]
   
   ### convert raw expression matrix to sparse dgRMatrix format
   if(!("dgRMatrix" %in% class(raw_expr_data))){
     cat("Converting to sparse dgRMatrix format for memory efficiency and ")
     cat("compatibility with ondisc...\n")
-    raw_expr_data = as.matrix(raw_expr_data)
-    raw_expr_data = as(raw_expr_data, "dgRMatrix")
+    raw_expr_data <- as.matrix(raw_expr_data)
+    raw_expr_data <- as(raw_expr_data, "dgRMatrix")
   }
   
   ### extract gRNA expression data from the combined expression matrix ###
@@ -128,7 +130,8 @@ for(experiment in 1:nrow(experiments)){
   remove_prefix <- function(rowname){
     strsplit(rowname, gRNA_prefix)[[1]][2]
   }
-  rownames(gRNA_expr_data) <- sapply(rownames(gRNA_expr_data), remove_prefix)
+  rownames(gRNA_expr_data) <- unname(sapply(rownames(gRNA_expr_data), 
+                                            remove_prefix))
   
   ### extract gene expression data from the combined expression matrix ###
   gene_rows <- !gRNA_rows
@@ -142,7 +145,7 @@ for(experiment in 1:nrow(experiments)){
   cell_barcodes <- colnames(gene_expr_data)
   gene_names <- dplyr::tibble(gene_name = rownames(gene_expr_data))
   odm_fp <- sprintf("%s/expression_matrix.odm", processed_gene_dir)
-  metadata_fp <- sprintf("%s/metadata", processed_gene_dir)
+  metadata_fp <- sprintf("%s/metadata.rds", processed_gene_dir)
   odm <- ondisc::create_ondisc_matrix_from_R_matrix(r_matrix = gene_expr_data,
                                                     barcodes = cell_barcodes,
                                                     features_df = gene_names,
@@ -161,7 +164,7 @@ for(experiment in 1:nrow(experiments)){
   cell_barcodes <- colnames(gRNA_expr_data)
   gRNA_names <- dplyr::tibble(gRNA_name = rownames(gRNA_expr_data))
   odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_dir)
-  metadata_fp <- sprintf("%s/raw_ungrouped_metadata", processed_gRNA_dir)
+  metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_dir)
   odm <- ondisc::create_ondisc_matrix_from_R_matrix(r_matrix = gRNA_expr_data,
                                                     barcodes = cell_barcodes,
                                                     features_df = gRNA_names,
