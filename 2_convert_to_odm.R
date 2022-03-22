@@ -138,6 +138,41 @@ for(experiment in 1:nrow(experiments)){
   gene_expr_data <- raw_expr_data[gene_rows,]
   rm(raw_expr_data)
   
+  #######################################################
+  # 3. process gRNA metadata
+  #######################################################
+  
+  # read in Supplementary Table 2
+  supp_filename <- sprintf("%sraw/supp_tables/41592_2020_837_MOESM4_ESM.xlsx", 
+                           schraivogel_dir)
+  supp_table <- readxl::read_excel(supp_filename, sheet = "Chr 8 control library") 
+  supp_table <- supp_table %>%
+    dplyr::select(Gene, Target) %>%
+    dplyr::rename(gene = Gene, target = Target) %>%
+    dplyr::filter(target != "non-targeting") %>%
+    dplyr::group_by(gene) %>%
+    dplyr::mutate(gene = ifelse(target == "enhancer",
+                                strsplit(gene, split = "-")[[1]][1],
+                                gene)) %>%
+    dplyr::ungroup() %>%
+    unique()
+  
+  # join supplementary table with list of gRNAs
+  experimental_design <- tibble::tibble(gRNA_id = rownames(gRNA_expr_data)) %>%
+    dplyr::group_by(gRNA_id) %>%
+    dplyr::mutate(gene = ifelse(grepl("non-targeting", gRNA_id), 
+                                "non-targeting", 
+                                strsplit(gRNA_id, split = "[-_]")[[1]][1])) %>%
+    dplyr::ungroup() %>%
+    dplyr::left_join(supp_table, by = "gene") %>% 
+    dplyr::mutate(target = ifelse(is.na(target), "non-targeting", target),
+                  known_effect = gene,
+                  gene = dplyr::case_when(
+                    target == "promoter" ~ sprintf("%s-TSS", gene),
+                    target == "enhancer" ~ sprintf("%s-enh", gene),
+                    target == "non-targeting" ~ "non-targeting")) %>%
+    dplyr::rename(target = gene, target_type = target)
+  
   #########################################################################
   # 3. create ODM for gene expression matrix
   #########################################################################
@@ -146,17 +181,16 @@ for(experiment in 1:nrow(experiments)){
   gene_names <- dplyr::tibble(gene_name = rownames(gene_expr_data))
   odm_fp <- sprintf("%s/expression_matrix.odm", processed_gene_dir)
   metadata_fp <- sprintf("%s/metadata.rds", processed_gene_dir)
-  odm <- ondisc::create_ondisc_matrix_from_R_matrix(r_matrix = gene_expr_data,
-                                                    barcodes = cell_barcodes,
-                                                    features_df = gene_names,
-                                                    odm_fp = odm_fp,
-                                                    metadata_fp = metadata_fp)
-  
-  # add batch information to the ODM
-  odm_with_batch <- odm %>% 
-    ondisc::mutate_cell_covariates(batch = cells_to_batch$batch)
-  ondisc::save_odm(odm = odm_with_batch, metadata_fp = metadata_fp)
-  
+  ondisc::create_ondisc_matrix_from_R_matrix(r_matrix = gene_expr_data,
+                                             barcodes = cell_barcodes,
+                                             features_df = gene_names,
+                                             odm_fp = odm_fp,
+                                             metadata_fp = metadata_fp) %>%
+    # add batch information to cell covariates
+    ondisc::mutate_cell_covariates(batch = cells_to_batch$batch) %>%
+    # save to disk
+    ondisc::save_odm(metadata_fp = metadata_fp)
+    
   #########################################################################
   # 4. create ODM for gRNA expression matrix
   #########################################################################
@@ -165,16 +199,19 @@ for(experiment in 1:nrow(experiments)){
   gRNA_names <- dplyr::tibble(gRNA_name = rownames(gRNA_expr_data))
   odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_dir)
   metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_dir)
-  odm <- ondisc::create_ondisc_matrix_from_R_matrix(r_matrix = gRNA_expr_data,
-                                                    barcodes = cell_barcodes,
-                                                    features_df = gRNA_names,
-                                                    odm_fp = odm_fp,
-                                                    metadata_fp = metadata_fp)
-  
-  # add batch information to the ODM
-  odm_with_batch <- odm %>% 
-    ondisc::mutate_cell_covariates(batch = cells_to_batch$batch)
-  ondisc::save_odm(odm = odm_with_batch, metadata_fp = metadata_fp)
+  ondisc::create_ondisc_matrix_from_R_matrix(r_matrix = gRNA_expr_data,
+                                             barcodes = cell_barcodes,
+                                             features_df = gRNA_names,
+                                             odm_fp = odm_fp,
+                                             metadata_fp = metadata_fp) %>%
+    # add batch information to cell covariates
+    ondisc::mutate_cell_covariates(batch = cells_to_batch$batch) %>%
+    # add gRNA metadata to feature covariates
+    ondisc::mutate_feature_covariates(target = experimental_design$target,
+                                      target_type = experimental_design$target_type,
+                                      known_effect = experimental_design$known_effect) %>%
+    # save to disk
+    ondisc::save_odm(metadata_fp = metadata_fp)
   
   cat("Done.\n")
 }

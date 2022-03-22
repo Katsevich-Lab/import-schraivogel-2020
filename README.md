@@ -1,6 +1,5 @@
 Schraivogel (2020) Data Documentation
 ================
-Eugene Katsevich
 March 16, 2022
 
 # Overview
@@ -31,8 +30,8 @@ list.dirs(processed_dir, full.names = FALSE, recursive = FALSE)
 
     ## [1] "ground_truth_perturbseq" "ground_truth_tapseq"
 
-Each of these has subdirectories for the processed gRNA data, the
-processed gene expression data, and auxiliary data:
+Each of these has subdirectories for the processed gRNA data and the
+processed gene expression data:
 
 ``` r
 # print subdirectories for one of the processed experiments
@@ -40,20 +39,32 @@ list.dirs(sprintf("%s/ground_truth_tapseq", processed_dir),
           full.names = FALSE, recursive = FALSE)
 ```
 
-    ## [1] "aux"  "gene" "gRNA"
+    ## [1] "gene" "gRNA"
 
 # Experimental design
 
 As mentioned above, the experimental design for these two ground truth
-experiments is the same. The file containing the experimental design is
-in the `aux` directory; let’s take a look at its first few rows:
+experiments is the same. The information about the gRNAs is contained in
+the last three columns of the feature covariate matrix of the
+corresponding `ondisc` matrix:
 
 ``` r
-aux_dir <- sprintf("%s/ground_truth_tapseq/aux", processed_dir)
-exper_design = readRDS(sprintf("%s/experimental_design.rds", aux_dir))
-exper_design %>% 
+# load the gRNA expression data
+processed_gRNA_dir <- sprintf("%s/ground_truth_tapseq/gRNA", processed_dir)
+gRNA_odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_dir)
+gRNA_metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_dir)
+gRNA_expr_odm <- ondisc::read_odm(gRNA_odm_fp, gRNA_metadata_fp)
+
+# extract the feature covariates containing the gRNA metadata
+exper_design <- gRNA_expr_odm %>% 
+  ondisc::get_feature_covariates() %>%
+  dplyr::select(target, target_type, known_effect) %>%
+  tibble::rownames_to_column(var = "gRNA") 
+
+# print the first five rows
+exper_design %>%
   head(5) %>% 
-  kableExtra::kable(format = "html", 
+  kableExtra::kable(format = "html",
                     booktabs = TRUE, 
                     col.names = c("gRNA", "Target", "Target Type", "Known Effect"))
 ```
@@ -184,7 +195,7 @@ gRNA_expr_odm
     ## A covariate_ondisc_matrix with the following components:
     ##  An ondisc_matrix with 86 features and 21977 cells.
     ##  A cell covariate matrix with columns n_nonzero, n_umis, batch.
-    ##  A feature covariate matrix with columns mean_expression, coef_of_variation, n_nonzero.
+    ##  A feature covariate matrix with columns mean_expression, coef_of_variation, n_nonzero, target, target_type, known_effect.
 
 ``` r
 # load the gene expression data
@@ -225,7 +236,7 @@ gRNA_expr_odm
     ## A covariate_ondisc_matrix with the following components:
     ##  An ondisc_matrix with 85 features and 37918 cells.
     ##  A cell covariate matrix with columns n_nonzero, n_umis, batch.
-    ##  A feature covariate matrix with columns mean_expression, coef_of_variation, n_nonzero.
+    ##  A feature covariate matrix with columns mean_expression, coef_of_variation, n_nonzero, target, target_type, known_effect.
 
 ``` r
 # load the gene expression data
@@ -244,6 +255,6 @@ gene_expr_odm
 This experiment has 37918 cells across 4 batches. The gRNA data come in
 the form of expressions and are not thresholded. There are a total of 85
 gRNAs, which is one fewer than the 86 in the experimental design.
-Perhaps the missing one (STK3\_-\_99837866.23-P1P2) got removed during
-QC by Schraivogel et al? I am not sure. Unlike the TAP-seq experiment,
-we have measured the whole transcriptome (a total of 17107 genes).
+Perhaps the missing one () got removed during QC by Schraivogel et al? I
+am not sure. Unlike the TAP-seq experiment, we have measured the whole
+transcriptome (a total of 17107 genes).

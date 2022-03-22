@@ -100,10 +100,4 @@ for(idx in 3:8){
   download.file(source, dest)
 }
 
-### sync the downloaded data to remote ###
-cat(sprintf("Syncing downloaded data to remote...\n"))
-sync_command = sprintf("rclone sync -v %s %s/raw", 
-                       raw_data_dir, remote_schraivogel_2020_data_dir)
-system(sync_command)
-
 cat(sprintf("Done!\n"))
