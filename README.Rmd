@@ -1,6 +1,7 @@
 ---
 title: "Schraivogel (2020) Data Documentation"
-date: March 16, 2022
+author: "Gene Katsevich;"
+date: May 3, 2022
 output: github_document 
 ---
 
@@ -10,46 +11,56 @@ library(tidyverse)
 
 # Overview 
 
-The portion of the Schraivogel data that is currently imported is the one described in the section "TAP-seq sensitively detects gene expression changes" of their paper. It contains two separate experiments: one TAP-seq and one perturb-seq. These experiments are meant as a proof-of-concept for TAP-seq, so they contain only positive and negative control perturbations (perturbations for which the ground truth is known). Both experiments have the same experimental design; they differ only in that TAP-seq targets a small number of genes while perturb-seq targets the whole transcriptome.
+This repository contains code to import and process the Schraivogel 2020 data. Schraivogel et al developed the targeted perturb-seq (TAP-seq) protocol, a new assay using direct capture both for gRNAs and genes. The point of sequencing only targeted genes is to reduce sequencing costs by focusing attention only on relevant genes. Schraivogel et al carried out proof-of-concept "ground truth" experiments based on TAP-seq and perturb-seq, as well as an at-scale experiment to find enhancers for 147 total genes across chromosomes 8 and 11. 
 
-The `processed` directory contains subdirectories corresponding to the two experiments:
-```{r}
-# top-level data directory
-schraivogel_dir <-.get_config_path("LOCAL_SCHRAIVOGEL_2020_DATA_DIR")
-
-# processed data directory
-processed_dir <- sprintf("%sprocessed", schraivogel_dir)
-
-# print subdirectories of `processed_dir`
-list.dirs(processed_dir, full.names = FALSE, recursive = FALSE)
+The `schraivogel-2020` directory structure is as follows:
 ```
-Each of these has subdirectories for the processed gRNA data and the processed gene expression data:
-```{r}
-# print subdirectories for one of the processed experiments
-list.dirs(sprintf("%s/ground_truth_tapseq", processed_dir), 
-          full.names = FALSE, recursive = FALSE)
+├── processed
+│   ├── ground_truth_tapseq
+│   │   ├── gene
+│   │   │   ├── expression_matrix.odm
+│   │   │   └── metadata.rds
+│   │   └── gRNA
+│   │       ├── raw_ungrouped.odm
+│   │       └── raw_ungrouped_metadata.rds
+│   ├── ground_truth_perturbseq
+│   |   ├── ...
+│   ├── enhancer_screen_chr8
+│   |   ├── ...
+│   ├── enhancer_screen_chr11
+│   |   ├── ...
+├── raw
+│   ├── ...
 ```
 
-# Experimental design
+The contents of the `raw` directory are suppressed, as they are unimportant. The `processed` directory contains four subdirectories (`ground_truth_tapseq`, `ground_truth_perturbseq`, `enhancer_screen_chr8`, `enhancer_screen_chr11`), which correspond to distinct datasets. The first two are for the ground truth experiment, and the last two are for the at scale enhancer screen experiment. All four have the same subdirectory structure, containing data for the gene and gRNA modalities. See for example the `ground_truth_tapseq` directory above.
+
+# Ground truth experiments
+
+There are two separate ground truth experiments: one TAP-seq and one perturb-seq. These experiments are meant as a proof-of-concept for TAP-seq, so they contain only positive and negative control perturbations (perturbations for which the ground truth is known). Both experiments have the same experimental design; they differ only in that TAP-seq targets a small number of genes while perturb-seq targets the whole transcriptome.
+
+## Experimental design
 
 As mentioned above, the experimental design for these two ground truth experiments is the same. The information about the gRNAs is contained in the last three columns of the feature covariate matrix of the corresponding `ondisc` matrix:
 
 ```{r}
 # load the gRNA expression data
+processed_dir <- sprintf("%s/processed", 
+                         .get_config_path("LOCAL_SCHRAIVOGEL_2020_DATA_DIR"))
 processed_gRNA_dir <- sprintf("%s/ground_truth_tapseq/gRNA", processed_dir)
 gRNA_odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_dir)
 gRNA_metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_dir)
 gRNA_expr_odm <- ondisc::read_odm(gRNA_odm_fp, gRNA_metadata_fp)
 
 # extract the feature covariates containing the gRNA metadata
-exper_design <- gRNA_expr_odm %>% 
-  ondisc::get_feature_covariates() %>%
-  dplyr::select(target, target_type, known_effect) %>%
+exper_design <- gRNA_expr_odm |> 
+  ondisc::get_feature_covariates() |>
+  dplyr::select(target, target_type, known_effect) |>
   tibble::rownames_to_column(var = "gRNA") 
 
 # print the first five rows
-exper_design %>%
-  head(5) %>% 
+exper_design |>
+  head(5) |> 
   kableExtra::kable(format = "html",
                     booktabs = TRUE, 
                     col.names = c("gRNA", "Target", "Target Type", "Known Effect"))
@@ -57,11 +68,11 @@ exper_design %>%
 
 The full table contains a total of `r nrow(exper_design)` rows, so there are `r nrow(exper_design)` gRNAs in this experiment. Breaking these down by their target,
 ```{r}
-exper_design %>% pull(target) %>% table()
+exper_design |> pull(target) |> table()
 ```
-we see that we have `r exper_design %>% summarise(sum(target == "non-targeting")) %>% pull()` non-targeting gRNAs as well as four gRNAs each for 14 targets ($30 + 4\times14 = 86$). Of these targets, 10 are gene TSSs and 4 are well-characterized enhancers of four genes. 
+we see that we have `r exper_design |> summarise(sum(target == "non-targeting")) |> pull()` non-targeting gRNAs as well as four gRNAs each for 14 targets ($30 + 4\times14 = 86$). Of these targets, 10 are gene TSSs and 4 are well-characterized enhancers of four genes. 
 
-# TAP-seq data
+## TAP-seq data details
 
 Let's now take a look at the TAP-seq data:
 ```{r}
@@ -79,11 +90,11 @@ gene_metadata_fp <- sprintf("%s/metadata.rds", processed_gene_dir)
 gene_expr_odm <- ondisc::read_odm(gene_odm_fp, gene_metadata_fp)
 gene_expr_odm
 ```
-This experiment has `r ondisc::ncol(gene_expr_odm)` cells across `r gene_expr_odm %>% ondisc::get_cell_covariates() %>% summarise(length(unique(batch))) %>% pull()` batches. The gRNA data come in the form of expressions and are not thresholded. There are a total of `r ondisc::nrow(gRNA_expr_odm)` gRNAs, as discussed above. A total of `r ondisc::nrow(gene_expr_odm)` genes are measured. Based on the paper, there are supposed to be 74 genes measured: 14 that were targeted and 60 presumably unrelated genes. Of the two missing genes, one is HS2 (whose enhancer was targeted) and one is a presumably unrelated gene. We can look further into why this is the case, but perhaps it's not urgent.
+This experiment has `r ondisc::ncol(gene_expr_odm)` cells across `r gene_expr_odm |> ondisc::get_cell_covariates() |> summarise(length(unique(batch))) |> pull()` batches. The gRNA data come in the form of expressions and are not thresholded. There are a total of `r ondisc::nrow(gRNA_expr_odm)` gRNAs, as discussed above. A total of `r ondisc::nrow(gene_expr_odm)` genes are measured. Based on the paper, there are supposed to be 74 genes measured: 14 that were targeted and 60 presumably unrelated genes. Of the two missing genes, one is HS2 (whose enhancer was targeted) and one is a presumably unrelated gene. We can look further into why this is the case, but perhaps it's not urgent.
 
-# Perturb-seq data
+## Perturb-seq data details
 
-Finally, we turn to the perturb-seq data:
+Next, we turn to the perturb-seq data:
 ```{r}
 # load the gRNA expression data
 processed_gRNA_dir <- sprintf("%s/ground_truth_perturbseq/gRNA", processed_dir)
@@ -100,4 +111,67 @@ gene_expr_odm <- ondisc::read_odm(gene_odm_fp, gene_metadata_fp)
 gene_expr_odm
 ```
 
-This experiment has `r ondisc::ncol(gene_expr_odm)` cells across `r gene_expr_odm %>% ondisc::get_cell_covariates() %>% summarise(length(unique(batch))) %>% pull()` batches. The gRNA data come in the form of expressions and are not thresholded. There are a total of `r ondisc::nrow(gRNA_expr_odm)` gRNAs, which is one fewer than the 86 in the experimental design. Perhaps the missing one (`r setdiff(exper_design$gRNA_id, gRNA_expr_odm %>% ondisc::get_feature_ids())`) got removed during QC by Schraivogel et al? I am not sure. Unlike the TAP-seq experiment, we have measured the whole transcriptome (a total of `r ondisc::nrow(gene_expr_odm)` genes).
+This experiment has `r ondisc::ncol(gene_expr_odm)` cells across `r gene_expr_odm |> ondisc::get_cell_covariates() |> summarise(length(unique(batch))) |> pull()` batches. The gRNA data come in the form of expressions and are not thresholded. There are a total of `r ondisc::nrow(gRNA_expr_odm)` gRNAs, which is one fewer than the 86 in the experimental design. Perhaps the missing one (`r setdiff(exper_design$gRNA, gRNA_expr_odm |> ondisc::get_feature_ids())`) got removed during QC by Schraivogel et al? I am not sure. Unlike the TAP-seq experiment, we have measured the whole transcriptome (a total of `r ondisc::nrow(gene_expr_odm)` genes).
+
+# At-scale enhancer screen
+
+As far as I can tell, lentiviral transfection was done with libraries targeting enhancers on chromosomes 8 and 11, but library preparation, sequencing, and association analysis were done separately for these two chromosomes. For example, only genes on chromosome 8 (chromosome 11) were targeted in the sequencing for chromosome 8 (chromosome 11). Therefore, the data for these two chromosomes are processed as separate experiments in separate `ondisc` matrices. 
+
+## Experimental design
+
+```{r, echo = FALSE}
+gRNAs_chr8 <- readxl::read_excel(sprintf('%sraw/supp_tables/41592_2020_837_MOESM4_ESM.xlsx',
+                                         .get_config_path("LOCAL_SCHRAIVOGEL_2020_DATA_DIR")),
+                                 sheet = "Chr 8 enhancer library")
+gRNAs_chr11 <- readxl::read_excel(sprintf('%sraw/supp_tables/41592_2020_837_MOESM4_ESM.xlsx',
+                                         .get_config_path("LOCAL_SCHRAIVOGEL_2020_DATA_DIR")),
+                                 sheet = "Chr 11 enhancer library")
+
+num_gRNAs_chr8 <- gRNAs_chr8 |> nrow()
+num_enhancers_chr8 <- gRNAs_chr8 |> dplyr::select(`Coordinates (hg19)`) |> unique() |> nrow()
+
+num_gRNAs_chr11 <- gRNAs_chr11 |> nrow()
+num_enhancers_chr11 <- gRNAs_chr11 |> dplyr::select(`Coordinates (hg19)`) |> unique() |> nrow()
+```
+
+The gRNAs used for the at scale screen are a superset of those used for the ground truth experiment In particular, the same set of 30 negative control gRNAs were used for chromosomes 8 and 11 as in the ground truth experiment. Furthermore, the $4 \times 14 = 56$ positive controls (targeting 10 TSSs and 4 enhancers) from the ground truth experiment were also used in the chromosome 8 screen (all the genes targeted in the ground truth experiment were on chromosome 8, while the enhancers targeted in this experiment came from a mix of chromosomes 8 and 11). There were also $4 \times 14 = 56$ positive controls (targeting 10 TSSs and 4 enhancers) used in the chromosome 11 screen. The TSSs are of genes from chromosome 11 (and thus distinct from the chromosome 8 screen), while the enhancers are the same as those used in the chromosome 8 screen. In addition to the positive and negative controls, the chromosome 8 screen had `r num_gRNAs_chr8` gRNAs targeting `r num_enhancers_chr8` enhancers and the chromosome 11 screen had `r num_gRNAs_chr11` gRNAs targeting `r num_enhancers_chr11` enhancers (most enhancers were targeted by four gRNAs, while a handful were targeted by fewer than four).
+
+The experimental design information is encoded in the feature covariates of the gRNA ODM in the same format as described above for the ground truth experiment.
+
+## Details of chromosome 8 screen
+
+```{r}
+# load the gRNA expression data
+processed_gRNA_dir <- sprintf("%s/enhancer_screen_chr8/gRNA", processed_dir)
+gRNA_odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_dir)
+gRNA_metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_dir)
+gRNA_expr_odm <- ondisc::read_odm(gRNA_odm_fp, gRNA_metadata_fp)
+gRNA_expr_odm
+
+# load the gene expression data
+processed_gene_dir <- sprintf("%s/enhancer_screen_chr8/gene", processed_dir)
+gene_odm_fp <- sprintf("%s/expression_matrix.odm", processed_gene_dir)
+gene_metadata_fp <- sprintf("%s/metadata.rds", processed_gene_dir)
+gene_expr_odm <- ondisc::read_odm(gene_odm_fp, gene_metadata_fp)
+gene_expr_odm
+```
+This experiment has `r ondisc::ncol(gene_expr_odm)` cells across `r gene_expr_odm |> ondisc::get_cell_covariates() |> summarise(length(unique(batch))) |> pull()` batches. The gRNA data come in the form of expressions and are not thresholded. There are a total of `r ondisc::nrow(gRNA_expr_odm)` gRNAs. All control gRNAs are present, whereas `r num_gRNAs_chr8 - gRNA_expr_odm |> ondisc::get_feature_covariates() |> summarise(sum(target_type == "enhancer" & is.na(known_effect)))` enhancer-targeting gRNAs are missing from the data. Note that only `r ondisc::nrow(gene_expr_odm)` chromosome 8 genes were targeted.
+
+## Details of chromosome 11 screen
+
+```{r}
+# load the gRNA expression data
+processed_gRNA_dir <- sprintf("%s/enhancer_screen_chr11/gRNA", processed_dir)
+gRNA_odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_dir)
+gRNA_metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_dir)
+gRNA_expr_odm <- ondisc::read_odm(gRNA_odm_fp, gRNA_metadata_fp)
+gRNA_expr_odm
+
+# load the gene expression data
+processed_gene_dir <- sprintf("%s/enhancer_screen_chr11/gene", processed_dir)
+gene_odm_fp <- sprintf("%s/expression_matrix.odm", processed_gene_dir)
+gene_metadata_fp <- sprintf("%s/metadata.rds", processed_gene_dir)
+gene_expr_odm <- ondisc::read_odm(gene_odm_fp, gene_metadata_fp)
+gene_expr_odm
+```
+This experiment has `r ondisc::ncol(gene_expr_odm)` cells across `r gene_expr_odm |> ondisc::get_cell_covariates() |> summarise(length(unique(batch))) |> pull()` batches. The gRNA data come in the form of expressions and are not thresholded. There are a total of `r ondisc::nrow(gRNA_expr_odm)` gRNAs. All negative control gRNAs are present, whereas `r 56-gRNA_expr_odm |> ondisc::get_feature_covariates() |> summarise(sum(!is.na(known_effect) & known_effect != "non-targeting"))` positive control and `r num_gRNAs_chr11 - gRNA_expr_odm |> ondisc::get_feature_covariates() |> summarise(sum(target_type == "enhancer" & is.na(known_effect)))` enhancer-targeting gRNAs are missing from the data. Note that only `r ondisc::nrow(gene_expr_odm)` chromosome 11 genes were targeted.
