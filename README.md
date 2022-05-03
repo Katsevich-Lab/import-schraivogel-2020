@@ -28,8 +28,8 @@ The `schraivogel-2020` directory structure is as follows:
     │   |   ├── ...
     │   ├── enhancer_screen_chr8
     │   |   ├── ...
-    │   ├── enhancer_screen_chr11
-    │   |   ├── ...
+    │   └── enhancer_screen_chr11
+    │       ├── ...
     ├── raw
     │   ├── ...
 
@@ -380,5 +380,5 @@ gene_expr_odm
 This experiment has 120310 cells across 13 batches. The gRNA data come
 in the form of expressions and are not thresholded. There are a total of
 3103 gRNAs. All negative control gRNAs are present, whereas 1 positive
-controls and 1 enhancer-targeting gRNAs are missing from the data. Note
+control and 1 enhancer-targeting gRNAs are missing from the data. Note
 that only 82 chromosome 11 genes were targeted.
