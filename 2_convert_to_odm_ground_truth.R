@@ -46,7 +46,7 @@ for(experiment in 1:nrow(experiments)){
   ### create directories to store processed gene and gRNA data ###
   processed_gene_dir <- sprintf("%sprocessed/%s/gene",
                                 schraivogel_dir, exper_name)
-  processed_gRNA_dir <- sprintf("%sprocessed/%s/gRNA",
+  processed_gRNA_dir <- sprintf("%sprocessed/%s/grna",
                                 schraivogel_dir, exper_name)
   for(dir in c(processed_gene_dir, processed_gRNA_dir)){
     if(!dir.exists(dir)) dir.create(dir, recursive = TRUE)
