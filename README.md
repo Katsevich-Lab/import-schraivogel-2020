@@ -224,7 +224,7 @@ gene_expr_odm
 
     ## A covariate_ondisc_matrix with the following components:
     ##  An ondisc_matrix with 72 features and 21977 cells.
-    ##  A cell covariate matrix with columns n_nonzero, n_umis, batch.
+    ##  A cell covariate matrix with columns n_nonzero, n_umis, batch, perturbation.
     ##  A feature covariate matrix with columns mean_expression, coef_of_variation, n_nonzero.
 
 This experiment has 21977 cells across 2 batches. The gRNA data come in
@@ -265,7 +265,7 @@ gene_expr_odm
 
     ## A covariate_ondisc_matrix with the following components:
     ##  An ondisc_matrix with 17107 features and 37918 cells.
-    ##  A cell covariate matrix with columns n_nonzero, n_umis, batch.
+    ##  A cell covariate matrix with columns n_nonzero, n_umis, batch, perturbation.
     ##  A feature covariate matrix with columns mean_expression, coef_of_variation, n_nonzero.
 
 This experiment has 37918 cells across 4 batches. The gRNA data come in
@@ -338,7 +338,7 @@ gene_expr_odm
 
     ## A covariate_ondisc_matrix with the following components:
     ##  An ondisc_matrix with 72 features and 112260 cells.
-    ##  A cell covariate matrix with columns n_nonzero, n_umis, batch.
+    ##  A cell covariate matrix with columns n_nonzero, n_umis, batch, perturbation.
     ##  A feature covariate matrix with columns mean_expression, coef_of_variation, n_nonzero.
 
 This experiment has 112260 cells across 14 batches. The gRNA data come
@@ -374,7 +374,7 @@ gene_expr_odm
 
     ## A covariate_ondisc_matrix with the following components:
     ##  An ondisc_matrix with 82 features and 120310 cells.
-    ##  A cell covariate matrix with columns n_nonzero, n_umis, batch.
+    ##  A cell covariate matrix with columns n_nonzero, n_umis, batch, perturbation.
     ##  A feature covariate matrix with columns mean_expression, coef_of_variation, n_nonzero.
 
 This experiment has 120310 cells across 13 batches. The gRNA data come
