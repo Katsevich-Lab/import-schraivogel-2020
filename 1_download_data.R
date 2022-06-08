@@ -8,8 +8,7 @@
 ######################################################################
 
 # set paths based on configuration file
-if(!file.exists("~/.research_config.R")) stop("Config file not found!")
-source("~/.research_config.R")
+system("source ~/.research_config")
 
 # load libraries
 library(RCurl)
