@@ -46,9 +46,13 @@ for(experiment in 1:nrow(experiments)){
   ### create directories to store processed gene and gRNA data ###
   processed_gene_dir <- sprintf("%sprocessed/%s/gene",
                                 schraivogel_dir, exper_name)
-  processed_gRNA_dir <- sprintf("%sprocessed/%s/grna",
+  processed_gRNA_expression_dir <- sprintf("%sprocessed/%s/grna_expression",
                                 schraivogel_dir, exper_name)
-  for(dir in c(processed_gene_dir, processed_gRNA_dir)){
+  processed_gRNA_assignment_dir <- sprintf("%sprocessed/%s/grna_assignment",
+                                           schraivogel_dir, exper_name)
+  for(dir in c(processed_gene_dir, 
+               processed_gRNA_expression_dir,
+               processed_gRNA_assignment_dir)){
     if(!dir.exists(dir)) dir.create(dir, recursive = TRUE)
   }
 
@@ -111,13 +115,13 @@ for(experiment in 1:nrow(experiments)){
   raw_expr_data <- readRDS(raw_expr_filename)
   raw_expr_data <- raw_expr_data[,cells_to_batch$cell_barcode]
 
-  ### convert raw expression matrix to sparse dgRMatrix format
-  if(!("dgRMatrix" %in% class(raw_expr_data))){
-    cat("Converting to sparse dgRMatrix format for memory efficiency and ")
-    cat("compatibility with ondisc...\n")
-    raw_expr_data <- as.matrix(raw_expr_data)
-    raw_expr_data <- as(raw_expr_data, "dgRMatrix")
-  }
+  # ### convert raw expression matrix to sparse dgRMatrix format
+  # if(!("dgRMatrix" %in% class(raw_expr_data))){
+  #   cat("Converting to sparse dgRMatrix format for memory efficiency and ")
+  #   cat("compatibility with ondisc...\n")
+  #   raw_expr_data <- as.matrix(raw_expr_data)
+  #   raw_expr_data <- as(raw_expr_data, "dgRMatrix")
+  # }
 
   ### extract gRNA expression data from the combined expression matrix ###
   gRNA_prefix <- "CROPseq_dCas9_DS_"
@@ -194,21 +198,54 @@ for(experiment in 1:nrow(experiments)){
   cat("Creating ODM for gRNA expression matrix...\n")
   cell_barcodes <- colnames(gRNA_expr_data)
   gRNA_names <- dplyr::tibble(gRNA_name = rownames(gRNA_expr_data))
-  odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_dir)
-  metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_dir)
-  ondisc::create_ondisc_matrix_from_R_matrix(r_matrix = gRNA_expr_data,
-                                             barcodes = cell_barcodes,
-                                             features_df = gRNA_names,
-                                             odm_fp = odm_fp,
-                                             metadata_fp = metadata_fp) |>
+  odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_expression_dir)
+  metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_expression_dir)
+  grna_expression_odm <- ondisc::create_ondisc_matrix_from_R_matrix(
+    r_matrix = gRNA_expr_data,
+    barcodes = cell_barcodes,
+    features_df = gRNA_names,
+    odm_fp = odm_fp,
+    metadata_fp = metadata_fp
+  ) |>
     # add batch information to cell covariates
     ondisc::mutate_cell_covariates(batch = cells_to_batch$batch) |>
     # add gRNA metadata to feature covariates
-    ondisc::mutate_feature_covariates(target = experimental_design$target,
-                                      target_type = experimental_design$target_type,
-                                      known_effect = experimental_design$known_effect) |>
-    # save to disk
+    ondisc::mutate_feature_covariates(
+      target = experimental_design$target,
+      target_type = experimental_design$target_type,
+      known_effect = experimental_design$known_effect
+    )
+  # save to disk
+  grna_expression_odm |> 
     ondisc::save_odm(metadata_fp = metadata_fp)
 
+  #########################################################################
+  # 5. create ODM for gRNA assignment matrix
+  #########################################################################
+  cat("Thresholding gRNA expression matrix...\n")
+  grna_mat <- grna_expression_odm[[1:nrow(grna_expression_odm), 1:ncol(grna_expression_odm)]]
+  grna_ids <- gRNA_names$gRNA_name
+  gRNA_assignment_list <- apply(grna_mat, 2, function(col)(grna_ids[col >= 8])) |>
+    lapply(function(perts)(ifelse(length(perts) == 0, "", perts)))
+    
+  cat("Creating ODM for gRNA assignment matrix...\n")
+  odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_assignment_dir)
+  metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_assignment_dir)
+  ondisc::convert_assign_list_to_sparse_odm(
+    cell_barcodes = cell_barcodes,
+    gRNA_ids = grna_ids,
+    gRNA_assignment_list = gRNA_assignment_list,
+    odm_fp = odm_fp,
+    metadata_fp = metadata_fp
+  ) |>
+    # add gRNA metadata to feature covariates
+    ondisc::mutate_feature_covariates(
+      target = experimental_design$target,
+      target_type = experimental_design$target_type,
+      known_effect = experimental_design$known_effect
+    ) |>
+    # save to disk
+    ondisc::save_odm(metadata_fp = metadata_fp)
+  
   cat("Done.\n")
 }

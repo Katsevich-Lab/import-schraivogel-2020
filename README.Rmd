@@ -16,24 +16,51 @@ This repository contains code to import and process the Schraivogel 2020 data. S
 The `schraivogel-2020` directory structure is as follows:
 ```
 ├── processed
-│   ├── ground_truth_tapseq
+│   ├── enhancer_screen_chr11
 │   │   ├── gene
 │   │   │   ├── expression_matrix.odm
 │   │   │   └── metadata.rds
-│   │   └── gRNA
+│   │   ├── grna_assignment
+│   │   │   ├── raw_ungrouped.odm
+│   │   │   └── raw_ungrouped_metadata.rds
+│   │   └── grna_expression
+│   │       ├── raw_ungrouped.odm
+│   │       └── raw_ungrouped_metadata.rds
+│   ├── enhancer_screen_chr8
+│   │   ├── gene
+│   │   │   ├── expression_matrix.odm
+│   │   │   └── metadata.rds
+│   │   ├── grna_assignment
+│   │   │   ├── raw_ungrouped.odm
+│   │   │   └── raw_ungrouped_metadata.rds
+│   │   └── grna_expression
 │   │       ├── raw_ungrouped.odm
 │   │       └── raw_ungrouped_metadata.rds
 │   ├── ground_truth_perturbseq
-│   |   ├── ...
-│   ├── enhancer_screen_chr8
-│   |   ├── ...
-│   └── enhancer_screen_chr11
-│       ├── ...
-├── raw
-│   ├── ...
+│   │   ├── gene
+│   │   │   ├── expression_matrix.odm
+│   │   │   └── metadata.rds
+│   │   ├── grna_assignment
+│   │   │   ├── raw_ungrouped.odm
+│   │   │   └── raw_ungrouped_metadata.rds
+│   │   └── grna_expression
+│   │       ├── raw_ungrouped.odm
+│   │       └── raw_ungrouped_metadata.rds
+│   └── ground_truth_tapseq
+│       ├── gene
+│       │   ├── expression_matrix.odm
+│       │   └── metadata.rds
+│       ├── grna_assignment
+│       │   ├── raw_ungrouped.odm
+│       │   └── raw_ungrouped_metadata.rds
+│       └── grna_expression
+│           ├── raw_ungrouped.odm
+│           └── raw_ungrouped_metadata.rds
+└── raw
+    ├── ...
 ```
 
-The contents of the `raw` directory are suppressed, as they are unimportant. The `processed` directory contains four subdirectories (`ground_truth_tapseq`, `ground_truth_perturbseq`, `enhancer_screen_chr8`, `enhancer_screen_chr11`), which correspond to distinct datasets. The first two are for the ground truth experiment, and the last two are for the at scale enhancer screen experiment. All four have the same subdirectory structure, containing data for the gene and gRNA modalities. See for example the `ground_truth_tapseq` directory above.
+The contents of the `raw` directory are suppressed, as they are unimportant. The `processed` directory contains four subdirectories (`ground_truth_tapseq`, `ground_truth_perturbseq`, `enhancer_screen_chr8`, `enhancer_screen_chr11`), which correspond to distinct datasets. The first two are for the ground truth experiment, and the last two are for the at scale enhancer screen experiment. All four have the same subdirectory structure, containing three modalities: `gene`, `grna_expression`, and `grna_assignment`. The first two contain gene and gRNA expression ODMs, while the last contains a logical ODM corresponding to Schraivogel's gRNA assignments to cells.
 
 # Ground truth experiments
 
@@ -41,13 +68,13 @@ There are two separate ground truth experiments: one TAP-seq and one perturb-seq
 
 ## Experimental design
 
-As mentioned above, the experimental design for these two ground truth experiments is the same. The information about the gRNAs is contained in the last three columns of the feature covariate matrix of the corresponding `ondisc` matrix:
+As mentioned above, the experimental design for these two ground truth experiments is the same. The information about the gRNAs is contained in the last three columns of the feature covariate matrix of both `gRNA_expression` and `gRNA_assignment` `ondisc` matrices:
 
 ```{r}
 # load the gRNA expression data
 processed_dir <- sprintf("%s/processed", 
                          .get_config_path("LOCAL_SCHRAIVOGEL_2020_DATA_DIR"))
-processed_gRNA_dir <- sprintf("%s/ground_truth_tapseq/gRNA", processed_dir)
+processed_gRNA_dir <- sprintf("%s/ground_truth_tapseq/gRNA_expression", processed_dir)
 gRNA_odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_dir)
 gRNA_metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_dir)
 gRNA_expr_odm <- ondisc::read_odm(gRNA_odm_fp, gRNA_metadata_fp)
@@ -77,11 +104,18 @@ we see that we have `r exper_design |> summarise(sum(target == "non-targeting"))
 Let's now take a look at the TAP-seq data:
 ```{r}
 # load the gRNA expression data
-processed_gRNA_dir <- sprintf("%s/ground_truth_tapseq/gRNA", processed_dir)
-gRNA_odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_dir)
+processed_gRNA_expression_dir <- sprintf("%s/ground_truth_tapseq/gRNA_expression", processed_dir)
+gRNA_odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_expression_dir)
 gRNA_metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_dir)
 gRNA_expr_odm <- ondisc::read_odm(gRNA_odm_fp, gRNA_metadata_fp)
 gRNA_expr_odm
+
+# load the gRNA assignment data
+processed_gRNA_assignment_dir <- sprintf("%s/ground_truth_tapseq/gRNA_assignment", processed_dir)
+gRNA_assignment_odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_assignment_dir)
+gRNA_assignment_metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_assignment_dir)
+gRNA_assign_odm <- ondisc::read_odm(gRNA_assignment_odm_fp, gRNA_assignment_metadata_fp)
+gRNA_assign_odm
 
 # load the gene expression data
 processed_gene_dir <- sprintf("%s/ground_truth_tapseq/gene", processed_dir)
@@ -97,11 +131,18 @@ This experiment has `r ondisc::ncol(gene_expr_odm)` cells across `r gene_expr_od
 Next, we turn to the perturb-seq data:
 ```{r}
 # load the gRNA expression data
-processed_gRNA_dir <- sprintf("%s/ground_truth_perturbseq/gRNA", processed_dir)
+processed_gRNA_dir <- sprintf("%s/ground_truth_perturbseq/gRNA_expression", processed_dir)
 gRNA_odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_dir)
 gRNA_metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_dir)
 gRNA_expr_odm <- ondisc::read_odm(gRNA_odm_fp, gRNA_metadata_fp)
 gRNA_expr_odm
+
+# load the gRNA assignment data
+processed_gRNA_assignment_dir <- sprintf("%s/ground_truth_perturbseq/gRNA_assignment", processed_dir)
+gRNA_assignment_odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_assignment_dir)
+gRNA_assignment_metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_assignment_dir)
+gRNA_assign_odm <- ondisc::read_odm(gRNA_assignment_odm_fp, gRNA_assignment_metadata_fp)
+gRNA_assign_odm
 
 # load the gene expression data
 processed_gene_dir <- sprintf("%s/ground_truth_perturbseq/gene", processed_dir)
@@ -142,11 +183,18 @@ The experimental design information is encoded in the feature covariates of the 
 
 ```{r}
 # load the gRNA expression data
-processed_gRNA_dir <- sprintf("%s/enhancer_screen_chr8/gRNA", processed_dir)
+processed_gRNA_dir <- sprintf("%s/enhancer_screen_chr8/gRNA_expression", processed_dir)
 gRNA_odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_dir)
 gRNA_metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_dir)
 gRNA_expr_odm <- ondisc::read_odm(gRNA_odm_fp, gRNA_metadata_fp)
 gRNA_expr_odm
+
+# load the gRNA assignment data
+processed_gRNA_assignment_dir <- sprintf("%s/enhancer_screen_chr8/gRNA_assignment", processed_dir)
+gRNA_assignment_odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_assignment_dir)
+gRNA_assignment_metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_assignment_dir)
+gRNA_assign_odm <- ondisc::read_odm(gRNA_assignment_odm_fp, gRNA_assignment_metadata_fp)
+gRNA_assign_odm
 
 # load the gene expression data
 processed_gene_dir <- sprintf("%s/enhancer_screen_chr8/gene", processed_dir)
@@ -161,11 +209,18 @@ This experiment has `r ondisc::ncol(gene_expr_odm)` cells across `r gene_expr_od
 
 ```{r}
 # load the gRNA expression data
-processed_gRNA_dir <- sprintf("%s/enhancer_screen_chr11/gRNA", processed_dir)
+processed_gRNA_dir <- sprintf("%s/enhancer_screen_chr11/gRNA_expression", processed_dir)
 gRNA_odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_dir)
 gRNA_metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_dir)
 gRNA_expr_odm <- ondisc::read_odm(gRNA_odm_fp, gRNA_metadata_fp)
 gRNA_expr_odm
+
+# load the gRNA assignment data
+processed_gRNA_assignment_dir <- sprintf("%s/enhancer_screen_chr11/gRNA_assignment", processed_dir)
+gRNA_assignment_odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_assignment_dir)
+gRNA_assignment_metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_assignment_dir)
+gRNA_assign_odm <- ondisc::read_odm(gRNA_assignment_odm_fp, gRNA_assignment_metadata_fp)
+gRNA_assign_odm
 
 # load the gene expression data
 processed_gene_dir <- sprintf("%s/enhancer_screen_chr11/gene", processed_dir)

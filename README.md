@@ -17,21 +17,48 @@ total genes across chromosomes 8 and 11.
 The `schraivogel-2020` directory structure is as follows:
 
     ├── processed
-    │   ├── ground_truth_tapseq
+    │   ├── enhancer_screen_chr11
     │   │   ├── gene
     │   │   │   ├── expression_matrix.odm
     │   │   │   └── metadata.rds
-    │   │   └── gRNA
+    │   │   ├── grna_assignment
+    │   │   │   ├── raw_ungrouped.odm
+    │   │   │   └── raw_ungrouped_metadata.rds
+    │   │   └── grna_expression
+    │   │       ├── raw_ungrouped.odm
+    │   │       └── raw_ungrouped_metadata.rds
+    │   ├── enhancer_screen_chr8
+    │   │   ├── gene
+    │   │   │   ├── expression_matrix.odm
+    │   │   │   └── metadata.rds
+    │   │   ├── grna_assignment
+    │   │   │   ├── raw_ungrouped.odm
+    │   │   │   └── raw_ungrouped_metadata.rds
+    │   │   └── grna_expression
     │   │       ├── raw_ungrouped.odm
     │   │       └── raw_ungrouped_metadata.rds
     │   ├── ground_truth_perturbseq
-    │   |   ├── ...
-    │   ├── enhancer_screen_chr8
-    │   |   ├── ...
-    │   └── enhancer_screen_chr11
-    │       ├── ...
-    ├── raw
-    │   ├── ...
+    │   │   ├── gene
+    │   │   │   ├── expression_matrix.odm
+    │   │   │   └── metadata.rds
+    │   │   ├── grna_assignment
+    │   │   │   ├── raw_ungrouped.odm
+    │   │   │   └── raw_ungrouped_metadata.rds
+    │   │   └── grna_expression
+    │   │       ├── raw_ungrouped.odm
+    │   │       └── raw_ungrouped_metadata.rds
+    │   └── ground_truth_tapseq
+    │       ├── gene
+    │       │   ├── expression_matrix.odm
+    │       │   └── metadata.rds
+    │       ├── grna_assignment
+    │       │   ├── raw_ungrouped.odm
+    │       │   └── raw_ungrouped_metadata.rds
+    │       └── grna_expression
+    │           ├── raw_ungrouped.odm
+    │           └── raw_ungrouped_metadata.rds
+    └── raw
+        ├── ...
 
 The contents of the `raw` directory are suppressed, as they are
 unimportant. The `processed` directory contains four subdirectories
@@ -39,9 +66,10 @@ unimportant. The `processed` directory contains four subdirectories
 `enhancer_screen_chr8`, `enhancer_screen_chr11`), which correspond to
 distinct datasets. The first two are for the ground truth experiment,
 and the last two are for the at scale enhancer screen experiment. All
-four have the same subdirectory structure, containing data for the gene
-and gRNA modalities. See for example the `ground_truth_tapseq` directory
-above.
+four have the same subdirectory structure, containing three modalities:
+`gene`, `grna_expression`, and `grna_assignment`. The first two contain
+gene and gRNA expression ODMs, while the last contains a logical ODM
+corresponding to Schraivogel’s gRNA assignments to cells.
 
 # Ground truth experiments
 
@@ -57,14 +85,14 @@ whole transcriptome.
 
 As mentioned above, the experimental design for these two ground truth
 experiments is the same. The information about the gRNAs is contained in
-the last three columns of the feature covariate matrix of the
-corresponding `ondisc` matrix:
+the last three columns of the feature covariate matrix of both
+`gRNA_expression` and `gRNA_assignment` `ondisc` matrices:
 
 ``` r
 # load the gRNA expression data
 processed_dir <- sprintf("%s/processed", 
                          .get_config_path("LOCAL_SCHRAIVOGEL_2020_DATA_DIR"))
-processed_gRNA_dir <- sprintf("%s/ground_truth_tapseq/gRNA", processed_dir)
+processed_gRNA_dir <- sprintf("%s/ground_truth_tapseq/gRNA_expression", processed_dir)
 gRNA_odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_dir)
 gRNA_metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_dir)
 gRNA_expr_odm <- ondisc::read_odm(gRNA_odm_fp, gRNA_metadata_fp)
@@ -201,8 +229,8 @@ Let’s now take a look at the TAP-seq data:
 
 ``` r
 # load the gRNA expression data
-processed_gRNA_dir <- sprintf("%s/ground_truth_tapseq/gRNA", processed_dir)
-gRNA_odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_dir)
+processed_gRNA_expression_dir <- sprintf("%s/ground_truth_tapseq/gRNA_expression", processed_dir)
+gRNA_odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_expression_dir)
 gRNA_metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_dir)
 gRNA_expr_odm <- ondisc::read_odm(gRNA_odm_fp, gRNA_metadata_fp)
 gRNA_expr_odm
@@ -212,6 +240,20 @@ gRNA_expr_odm
     ##  An ondisc_matrix with 86 features and 21977 cells.
     ##  A cell covariate matrix with columns n_nonzero, n_umis, batch.
     ##  A feature covariate matrix with columns mean_expression, coef_of_variation, n_nonzero, target, target_type, known_effect.
+
+``` r
+# load the gRNA assignment data
+processed_gRNA_assignment_dir <- sprintf("%s/ground_truth_tapseq/gRNA_assignment", processed_dir)
+gRNA_assignment_odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_assignment_dir)
+gRNA_assignment_metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_assignment_dir)
+gRNA_assign_odm <- ondisc::read_odm(gRNA_assignment_odm_fp, gRNA_assignment_metadata_fp)
+gRNA_assign_odm
+```
+
+    ## A covariate_ondisc_matrix with the following components:
+    ##  An ondisc_matrix with 86 features and 21977 cells.
+    ##  A cell covariate matrix with columns n_nonzero.
+    ##  A feature covariate matrix with columns n_nonzero, target, target_type, known_effect.
 
 ``` r
 # load the gene expression data
@@ -224,7 +266,7 @@ gene_expr_odm
 
     ## A covariate_ondisc_matrix with the following components:
     ##  An ondisc_matrix with 72 features and 21977 cells.
-    ##  A cell covariate matrix with columns n_nonzero, n_umis, batch, perturbation.
+    ##  A cell covariate matrix with columns n_nonzero, n_umis, batch.
     ##  A feature covariate matrix with columns mean_expression, coef_of_variation, n_nonzero.
 
 This experiment has 21977 cells across 2 batches. The gRNA data come in
@@ -242,7 +284,7 @@ Next, we turn to the perturb-seq data:
 
 ``` r
 # load the gRNA expression data
-processed_gRNA_dir <- sprintf("%s/ground_truth_perturbseq/gRNA", processed_dir)
+processed_gRNA_dir <- sprintf("%s/ground_truth_perturbseq/gRNA_expression", processed_dir)
 gRNA_odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_dir)
 gRNA_metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_dir)
 gRNA_expr_odm <- ondisc::read_odm(gRNA_odm_fp, gRNA_metadata_fp)
@@ -255,6 +297,20 @@ gRNA_expr_odm
     ##  A feature covariate matrix with columns mean_expression, coef_of_variation, n_nonzero, target, target_type, known_effect.
 
 ``` r
+# load the gRNA assignment data
+processed_gRNA_assignment_dir <- sprintf("%s/ground_truth_perturbseq/gRNA_assignment", processed_dir)
+gRNA_assignment_odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_assignment_dir)
+gRNA_assignment_metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_assignment_dir)
+gRNA_assign_odm <- ondisc::read_odm(gRNA_assignment_odm_fp, gRNA_assignment_metadata_fp)
+gRNA_assign_odm
+```
+
+    ## A covariate_ondisc_matrix with the following components:
+    ##  An ondisc_matrix with 85 features and 37918 cells.
+    ##  A cell covariate matrix with columns n_nonzero.
+    ##  A feature covariate matrix with columns n_nonzero, target, target_type, known_effect.
+
+``` r
 # load the gene expression data
 processed_gene_dir <- sprintf("%s/ground_truth_perturbseq/gene", processed_dir)
 gene_odm_fp <- sprintf("%s/expression_matrix.odm", processed_gene_dir)
@@ -265,7 +321,7 @@ gene_expr_odm
 
     ## A covariate_ondisc_matrix with the following components:
     ##  An ondisc_matrix with 17107 features and 37918 cells.
-    ##  A cell covariate matrix with columns n_nonzero, n_umis, batch, perturbation.
+    ##  A cell covariate matrix with columns n_nonzero, n_umis, batch.
     ##  A feature covariate matrix with columns mean_expression, coef_of_variation, n_nonzero.
 
 This experiment has 37918 cells across 4 batches. The gRNA data come in
@@ -315,7 +371,7 @@ truth experiment.
 
 ``` r
 # load the gRNA expression data
-processed_gRNA_dir <- sprintf("%s/enhancer_screen_chr8/gRNA", processed_dir)
+processed_gRNA_dir <- sprintf("%s/enhancer_screen_chr8/gRNA_expression", processed_dir)
 gRNA_odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_dir)
 gRNA_metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_dir)
 gRNA_expr_odm <- ondisc::read_odm(gRNA_odm_fp, gRNA_metadata_fp)
@@ -328,6 +384,20 @@ gRNA_expr_odm
     ##  A feature covariate matrix with columns mean_expression, coef_of_variation, n_nonzero, target, target_type, known_effect.
 
 ``` r
+# load the gRNA assignment data
+processed_gRNA_assignment_dir <- sprintf("%s/enhancer_screen_chr8/gRNA_assignment", processed_dir)
+gRNA_assignment_odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_assignment_dir)
+gRNA_assignment_metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_assignment_dir)
+gRNA_assign_odm <- ondisc::read_odm(gRNA_assignment_odm_fp, gRNA_assignment_metadata_fp)
+gRNA_assign_odm
+```
+
+    ## A covariate_ondisc_matrix with the following components:
+    ##  An ondisc_matrix with 4119 features and 112260 cells.
+    ##  A cell covariate matrix with columns n_nonzero.
+    ##  A feature covariate matrix with columns n_nonzero, target, target_type, known_effect.
+
+``` r
 # load the gene expression data
 processed_gene_dir <- sprintf("%s/enhancer_screen_chr8/gene", processed_dir)
 gene_odm_fp <- sprintf("%s/expression_matrix.odm", processed_gene_dir)
@@ -338,7 +408,7 @@ gene_expr_odm
 
     ## A covariate_ondisc_matrix with the following components:
     ##  An ondisc_matrix with 72 features and 112260 cells.
-    ##  A cell covariate matrix with columns n_nonzero, n_umis, batch, perturbation.
+    ##  A cell covariate matrix with columns n_nonzero, n_umis, batch.
     ##  A feature covariate matrix with columns mean_expression, coef_of_variation, n_nonzero.
 
 This experiment has 112260 cells across 14 batches. The gRNA data come
@@ -351,7 +421,7 @@ were targeted.
 
 ``` r
 # load the gRNA expression data
-processed_gRNA_dir <- sprintf("%s/enhancer_screen_chr11/gRNA", processed_dir)
+processed_gRNA_dir <- sprintf("%s/enhancer_screen_chr11/gRNA_expression", processed_dir)
 gRNA_odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_dir)
 gRNA_metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_dir)
 gRNA_expr_odm <- ondisc::read_odm(gRNA_odm_fp, gRNA_metadata_fp)
@@ -364,6 +434,20 @@ gRNA_expr_odm
     ##  A feature covariate matrix with columns mean_expression, coef_of_variation, n_nonzero, target, target_type, known_effect.
 
 ``` r
+# load the gRNA assignment data
+processed_gRNA_assignment_dir <- sprintf("%s/enhancer_screen_chr11/gRNA_assignment", processed_dir)
+gRNA_assignment_odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_assignment_dir)
+gRNA_assignment_metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_assignment_dir)
+gRNA_assign_odm <- ondisc::read_odm(gRNA_assignment_odm_fp, gRNA_assignment_metadata_fp)
+gRNA_assign_odm
+```
+
+    ## A covariate_ondisc_matrix with the following components:
+    ##  An ondisc_matrix with 3103 features and 120310 cells.
+    ##  A cell covariate matrix with columns n_nonzero.
+    ##  A feature covariate matrix with columns n_nonzero, target, target_type, known_effect.
+
+``` r
 # load the gene expression data
 processed_gene_dir <- sprintf("%s/enhancer_screen_chr11/gene", processed_dir)
 gene_odm_fp <- sprintf("%s/expression_matrix.odm", processed_gene_dir)
@@ -374,7 +458,7 @@ gene_expr_odm
 
     ## A covariate_ondisc_matrix with the following components:
     ##  An ondisc_matrix with 82 features and 120310 cells.
-    ##  A cell covariate matrix with columns n_nonzero, n_umis, batch, perturbation.
+    ##  A cell covariate matrix with columns n_nonzero, n_umis, batch.
     ##  A feature covariate matrix with columns mean_expression, coef_of_variation, n_nonzero.
 
 This experiment has 120310 cells across 13 batches. The gRNA data come
