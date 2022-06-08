@@ -27,7 +27,7 @@ supp_tab_url = "https://static-content.springer.com/esm/art%3A10.1038%2Fs41592-0
 
 ### create directories for raw data ###
 
-raw_data_dir = sprintf("%s/raw", local_schraivogel_2020_data_dir)
+raw_data_dir = sprintf("%sraw", .get_config_path("LOCAL_SCHRAIVOGEL_2020_DATA_DIR"))
 if(dir.exists(raw_data_dir)) stop("Raw data directory already exists!")
 
 geo_dir = sprintf("%s/geo", raw_data_dir)
