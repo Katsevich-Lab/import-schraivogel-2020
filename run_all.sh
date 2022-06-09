@@ -1,3 +1,5 @@
+# required R packages: R.utils, RCurl, dplyr, readxl, ondisc
+
 hpcc=$(hostname | grep "hpcc" | wc -l)
 if [[ hpcc ]]
 then

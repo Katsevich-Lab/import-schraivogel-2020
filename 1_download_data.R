@@ -61,16 +61,22 @@ for(file in list.files(geo_dir, full.names = TRUE)){
 
 ### download results files from FTP directory ###
 
-# get list of files in FTP directory
-filenames = getURL(ftp_url)
-filenames = strsplit(filenames, "href=\"")[[1]]
-filenames = unname(sapply(filenames, 
-                          function(str)(strsplit(str, split = "\"")[[1]][1])))[-(1:6)]
+# # get list of files in FTP directory
+# filenames = getURL(ftp_url)
+# filenames = strsplit(filenames, "href=\"")[[1]]
+# filenames = unname(sapply(filenames, 
+#                           function(str)(strsplit(str, split = "\"")[[1]][1])))[-(1:6)]
+
+# For some reason, there are issues with downloading some of the files from the FTP
+# directory. Instead, we will download only the files we need.
+
+filenames = c("TAP.nods.RDS", "Whole.nods.RDS")
 
 # download
 for(filename in filenames){
   source = sprintf("%s%s", ftp_url, filename)
-  dest <- sprintf("%s/ftp/%s", raw_data_dir, filename)
+#  dest <- sprintf("%s/ftp/%s", raw_data_dir, filename)
+  dest <- sprintf("~/Downloads/%s", filename)
   cat(sprintf("Downloading %s...\n", filename))
   download.file(source, dest)
 }
