@@ -75,8 +75,7 @@ filenames = c("TAP.nods.RDS", "Whole.nods.RDS")
 # download
 for(filename in filenames){
   source = sprintf("%s%s", ftp_url, filename)
-#  dest <- sprintf("%s/ftp/%s", raw_data_dir, filename)
-  dest <- sprintf("~/Downloads/%s", filename)
+  dest <- sprintf("%s/ftp/%s", raw_data_dir, filename)
   cat(sprintf("Downloading %s...\n", filename))
   download.file(source, dest)
 }
