@@ -23,7 +23,7 @@ experiments <- dplyr::tibble(name = c("enhancer_screen_chr8",
 
 
 for(experiment in 1:nrow(experiments)){
-  
+
   ### retrieve experiment names/labels ###
   exper_name <- experiments$name[experiment]
   exper_label <- experiments$label[experiment]
@@ -36,44 +36,44 @@ for(experiment in 1:nrow(experiments)){
                                            schraivogel_dir, exper_name)
   processed_gRNA_assignment_dir <- sprintf("%sprocessed/%s/grna_assignment",
                                            schraivogel_dir, exper_name)
-  for(dir in c(processed_gene_dir, 
+  for(dir in c(processed_gene_dir,
                processed_gRNA_expression_dir,
                processed_gRNA_assignment_dir)){
     if(!dir.exists(dir)) dir.create(dir, recursive = TRUE)
   }
-  
+
   #######################################################
   # 1. Read in the expression matrices
   #######################################################
-  
+
   cat("Reading in the expression matrices...\n")
   geo_files <- list.files(sprintf("%sraw/geo", schraivogel_dir), full.names = TRUE)
   geo_expr_files <- geo_files[grepl("counts.csv", geo_files) & grepl(exper_label, geo_files)]
-  
+
   read_file <- function(filename){
     batch <- strsplit(filename, split = ".counts.csv|_")[[1]] |> dplyr::last()
     readr::read_csv(filename) |>
-      dplyr::rename_with(function(col_names)(c("feature_name", 
+      dplyr::rename_with(function(col_names)(c("feature_name",
                                                sprintf("%s_%s", col_names[-1], batch))))
   }
   expr_data_list <- lapply(geo_expr_files, read_file)
 
   # make sure all expression datasets have the same feature names
   feature_names <- expr_data_list[[1]]$feature_name
-  same_feature_names <- lapply(expr_data_list, 
-                               function(expr_data)(all(expr_data$feature_name == feature_names))) |> 
-    unlist() |> 
+  same_feature_names <- lapply(expr_data_list,
+                               function(expr_data)(all(expr_data$feature_name == feature_names))) |>
+    unlist() |>
     all()
   if(!same_feature_names) stop("All data frames should have the same feature names!")
-  
+
   # join all the expression datasets by horizontal concatenation
-  all_expr_data <- lapply(expr_data_list, 
-                   function(expr_data)(expr_data |> 
+  all_expr_data <- lapply(expr_data_list,
+                   function(expr_data)(expr_data |>
                                          dplyr::select(-feature_name)
-                                         )) |> 
+                                         )) |>
     dplyr::bind_cols() |>
     as.matrix()
-  
+
   ### extract gene and gRNA expression data from the combined expression matrix ###
   gRNA_prefix <- "CROPseq_dCas9_DS_"
   gRNA_rows <- grepl(gRNA_prefix, feature_names)
@@ -84,13 +84,13 @@ for(experiment in 1:nrow(experiments)){
   #######################################################
   # 2. Create ODM for gene expression matrix
   #######################################################
-  
+
   cat("Creating ODM for gene expression matrix...\n")
   cell_barcodes <- colnames(gene_expr_data)
   gene_names <- dplyr::tibble(gene_name = feature_names[!gRNA_rows])
-  batches <- gene_expr_data |> 
-    colnames() |> 
-    sapply(function(col_name)(strsplit(col_name, split = "_")[[1]][2])) |> 
+  batches <- gene_expr_data |>
+    colnames() |>
+    sapply(function(col_name)(strsplit(col_name, split = "_")[[1]][2])) |>
     unname()
   odm_fp <- sprintf("%s/expression_matrix.odm", processed_gene_dir)
   metadata_fp <- sprintf("%s/metadata.rds", processed_gene_dir)
@@ -104,25 +104,25 @@ for(experiment in 1:nrow(experiments)){
     # save to disk
     ondisc::save_odm(metadata_fp = metadata_fp)
   rm(gene_expr_data)
-  
-  
+
+
   #######################################################
   # 3. process gRNA metadata
   #######################################################
 
   cat("Processing gRNA metadata...\n")
-  
+
   # read in Supplementary Table 2, choosing the relevant sheet of the Excel file
   supp_filename <- sprintf("%sraw/supp_tables/41592_2020_837_MOESM4_ESM.xlsx",
                            schraivogel_dir)
   if(exper_name == "enhancer_screen_chr8"){
-    supp_table_ctrl <- readxl::read_excel(supp_filename, sheet = "Chr 8 control library") 
+    supp_table_ctrl <- readxl::read_excel(supp_filename, sheet = "Chr 8 control library")
   } else if(exper_name == "enhancer_screen_chr11"){
-    supp_table_ctrl <- readxl::read_excel(supp_filename, sheet = "Chr 11 control library") 
+    supp_table_ctrl <- readxl::read_excel(supp_filename, sheet = "Chr 11 control library")
   } else{
     stop("Wrong experiment name!")
   }
-  
+
   # massage the supplementary table
   supp_table_ctrl <- supp_table_ctrl |>
     dplyr::select(Gene, Target) |>
@@ -139,13 +139,13 @@ for(experiment in 1:nrow(experiments)){
                     target_type == "promoter" ~ sprintf("%s-TSS", gene),
                     target_type == "enhancer" ~ sprintf("%s-enh", gene))) |>
     dplyr::select(-gene)
-  
+
   # remove the prefixes from the gRNA expression matrix
   remove_prefix <- function(rowname){
     strsplit(rowname, gRNA_prefix)[[1]][2]
   }
   gRNA_names <- unname(sapply(feature_names[gRNA_rows], remove_prefix))
-  
+
   # join supplementary table with list of gRNAs
   experimental_design <- tibble::tibble(gRNA_id = gRNA_names) |>
     dplyr::rowwise() |>
@@ -189,8 +189,8 @@ for(experiment in 1:nrow(experiments)){
   grna_expression_odm |>
     ondisc::save_odm(metadata_fp = metadata_fp)
   rm(gRNA_expr_data)
-  
-  
+
+
   #########################################################################
   # 5. create ODM for gRNA assignment matrix
   #########################################################################
@@ -198,8 +198,14 @@ for(experiment in 1:nrow(experiments)){
   grna_mat <- grna_expression_odm[[1:nrow(grna_expression_odm), 1:ncol(grna_expression_odm)]]
   grna_ids <- gRNA_names$gRNA_name
   gRNA_assignment_list <- apply(grna_mat, 2, function(col)(grna_ids[col >= 8])) |>
-    lapply(function(perts)(ifelse(length(perts) == 0, "", perts)))
-  
+    lapply(function(perts){
+      if(length(perts) == 0){
+        ""
+      } else{
+        perts
+      }
+    })
+
   cat("Creating ODM for gRNA assignment matrix...\n")
   odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_assignment_dir)
   metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_assignment_dir)
@@ -218,6 +224,6 @@ for(experiment in 1:nrow(experiments)){
     ) |>
     # save to disk
     ondisc::save_odm(metadata_fp = metadata_fp)
-  
+
   cat("Done.\n")
 }

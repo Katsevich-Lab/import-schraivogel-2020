@@ -50,7 +50,7 @@ for(experiment in 1:nrow(experiments)){
                                 schraivogel_dir, exper_name)
   processed_gRNA_assignment_dir <- sprintf("%sprocessed/%s/grna_assignment",
                                            schraivogel_dir, exper_name)
-  for(dir in c(processed_gene_dir, 
+  for(dir in c(processed_gene_dir,
                processed_gRNA_expression_dir,
                processed_gRNA_assignment_dir)){
     if(!dir.exists(dir)) dir.create(dir, recursive = TRUE)
@@ -216,7 +216,7 @@ for(experiment in 1:nrow(experiments)){
       known_effect = experimental_design$known_effect
     )
   # save to disk
-  grna_expression_odm |> 
+  grna_expression_odm |>
     ondisc::save_odm(metadata_fp = metadata_fp)
 
   #########################################################################
@@ -226,8 +226,14 @@ for(experiment in 1:nrow(experiments)){
   grna_mat <- grna_expression_odm[[1:nrow(grna_expression_odm), 1:ncol(grna_expression_odm)]]
   grna_ids <- gRNA_names$gRNA_name
   gRNA_assignment_list <- apply(grna_mat, 2, function(col)(grna_ids[col >= 8])) |>
-    lapply(function(perts)(ifelse(length(perts) == 0, "", perts)))
-    
+    lapply(function(perts){
+      if(length(perts) == 0){
+        ""
+      } else{
+        perts
+      }
+    })
+
   cat("Creating ODM for gRNA assignment matrix...\n")
   odm_fp <- sprintf("%s/raw_ungrouped.odm", processed_gRNA_assignment_dir)
   metadata_fp <- sprintf("%s/raw_ungrouped_metadata.rds", processed_gRNA_assignment_dir)
@@ -246,6 +252,6 @@ for(experiment in 1:nrow(experiments)){
     ) |>
     # save to disk
     ondisc::save_odm(metadata_fp = metadata_fp)
-  
+
   cat("Done.\n")
 }
