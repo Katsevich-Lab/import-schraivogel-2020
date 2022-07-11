@@ -1,6 +1,6 @@
 # required R packages: R.utils, RCurl, dplyr, readxl, ondisc
 
-#$ -l m_mem_free=16G
+#$ -l m_mem_free=25G
 #$ -q short.q
 
 hpcc=$(hostname | grep "hpcc" | wc -l)
